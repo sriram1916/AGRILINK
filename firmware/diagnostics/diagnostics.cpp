@@ -11,10 +11,10 @@ const char *TAG = "diagnostics";
 
 void vDiagnosticsTask(void *arg) {
     (void)arg;
-    ESP_LOGI(TAG, "Diagnostics task initialized. Monitoring interfaces are placeholders.");
+    ESP_LOGI(TAG, "[AGRILINK] Diagnostics task initialized");
 
     while (true) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(5000));
     }
 }
 

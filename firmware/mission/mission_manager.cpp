@@ -11,10 +11,10 @@ const char *TAG = "mission_manager";
 
 void vMissionManagerTask(void *arg) {
     (void)arg;
-    ESP_LOGI(TAG, "Mission manager task initialized. Mission orchestration is intentionally stubbed.");
+    ESP_LOGI(TAG, "[AGRILINK] Mission manager task initialized");
 
     while (true) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(5000));
     }
 }
 

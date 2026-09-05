@@ -86,25 +86,33 @@ Safety decisions are expected to override navigation and normal control commands
 ```text
 AgriLink/
 ├── README.md
-├── architecture/
+├── CMakeLists.txt
+├── platformio.ini
+├── sdkconfig.esp32dev
+├── .gitignore
+├── include/
+│   └── agri_types.h
+├── src/
+│   ├── CMakeLists.txt
+│   └── main.cpp
 ├── firmware/
+│   ├── heartbeat/
+│   ├── sensors/
+│   ├── communication/
+│   ├── control/
+│   ├── simulation/
+│   ├── safety/
 │   ├── mission/
 │   ├── navigation/
-│   ├── control/
-│   ├── safety/
-│   ├── communication/
 │   ├── diagnostics/
+│   ├── fault_injection/
+│   ├── tests/
 │   └── rtos/
+├── scripts/
 ├── simulation/
-├── communication/
-├── control/
-├── fault-injection/
-├── tests/
 ├── docs/
-├── dashboard/
-├── platformio.ini
-├── .gitignore
-└── src/
+├── architecture/
+└── .vscode/
 ```
 
 ## Build status
