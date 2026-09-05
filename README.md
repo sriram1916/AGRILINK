@@ -1,128 +1,149 @@
-# AgriLink
+# AgriLink — Embedded Vehicle Control ECU
 
-AgriLink is a prototype embedded control and communication platform for an autonomous agricultural vehicle. The project models the software architecture of an ESP32-based Vehicle Control ECU and is intentionally designed as a simulation-facing prototype for research, engineering exploration, and early-stage system design.
+An ESP32-based embedded vehicle-control ECU prototype built with ESP-IDF, FreeRTOS, and Wokwi simulation. The project models the software architecture of a Vehicle Control ECU for a simulated agricultural machine: a deterministic FreeRTOS task graph that reads sensors, exchanges telemetry and commands over a communication bus, generates and validates motion control, supervises safety, injects deterministic faults, and self-verifies through a runtime test runner.
 
-This repository is not a production autonomous tractor control system, not a certified safety-critical implementation, and not a complete ISO 11783/ISOBUS stack. It is a simulation-oriented platform intended to explore real-time control, fault tolerance, communications, and subsystem orchestration in a farm-vehicle context.
+## Key implemented capabilities
 
-## Project intent
+- **ESP32 / ESP-IDF** target (`esp32dev` / ESP-IDF via PlatformIO)
+- **FreeRTOS task-based architecture** with explicit per-subsystem priorities (`firmware/rtos/agri_rtos.h`)
+- **System boot and state management** — `INIT -> READY` transition driven by the boot task
+- **Heartbeat monitoring** — periodic state log and GPIO2 LED toggle
+- **Sensor simulation** — deterministic GPS, IMU, and wheel-speed snapshots with validity flags (`firmware/sensors/`)
+- **Communication subsystem** — transport-agnostic message layer with a Wokwi loopback transport (`firmware/communication/`)
+- **CRC validation** — Fletcher-16 checksum validation on received messages
+- **Deterministic control layer** — command generation, communication round-trip, validate/clamp, and actuation (`firmware/control/`)
+- **Safety supervision and gating** — monitors sensors, communication, and vehicle state; gates and zeroes unsafe control outputs (`firmware/safety/`)
+- **Deterministic fault injection** — scheduled GPS-loss, communication-loss, and invalid-command faults (`firmware/fault_injection/`)
+- **Test runner** — runtime observer emitting `[TEST] … PASS|FAIL` lines (`firmware/tests/`)
+- **Wokwi simulation** — `simulation/diagram.json` + `simulation/wokwi.toml` running the ESP32 DevKitC V4
 
-The ESP32 DevKit acts as the Vehicle Control ECU for a simulated agricultural machine. The system is organized around a FreeRTOS-based architecture with multiple embedded tasks for sensors, localization, navigation, motion control, safety supervision, communication, diagnostics, and vehicle simulation.
+## High-level architecture
 
-The early architecture emphasizes:
+```mermaid
+flowchart LR
+  Sensors["Sensors (Phase 3)"] -->|snapshot| Comm["Communication (Phase 4)"]
+  Comm -->|telemetry / commands| Control["Control (Phase 5)"]
+  Control -->|output| Sim["Vehicle Simulation"]
+  Sensors -->|reads| Safety["Safety (Phase 6)"]
+  Comm -->|stats| Safety
+  Sim -->|state| Safety
+  Control -->|gated by| Safety
+  FaultInj["Fault Injection (Phase 7)"] -.->|marks invalid| Sensors
+  FaultInj -.->|loss| Comm
+  FaultInj -.->|invalid cmd| Control
+  TestRunner["Test Runner (Phase 8)"] -.->|observe| Safety
+  TestRunner -.->|observe| Comm
+  TestRunner -.->|observe| Sensors
+  TestRunner -.->|observe| Sim
+  TestRunner -.->|observe| FaultInj
+```
 
-- deterministic real-time task separation
-- explicit safety override paths
-- modular subsystem boundaries
-- fault-tolerant control concepts
-- prototype communication between a farm control center and the vehicle ECU
-- ISOBUS-inspired communication patterns without claiming a full implementation
+Data flows Sensors -> Communication -> Control -> Vehicle Simulation. Safety reads the latest sensor snapshot, communication statistics, and simulated vehicle state, and gates the Control output (zeroing it when unsafe) before it reaches the vehicle simulation. Fault Injection deterministically perturbs Sensors/Communication/Control; the Test Runner observes every subsystem through existing getters without modifying behavior.
 
-## Technical direction
+## Project phases
 
-- MCU: ESP32 DevKit
-- Language: C/C++
-- Framework: ESP-IDF via PlatformIO
-- RTOS: FreeRTOS
-- Simulation: Wokwi
-- Development environment: VS Code
-- Version control: Git
-- Repository: GitHub
+These are development phases for the repository, distinct from the runtime boot-stage log labels (e.g. `[AGRILINK] System boot - Phase 1/2/3 …`), which are merely chronological log tags printed by `app_main` and the boot task.
 
-## System architecture status
+| Phase | Area | Summary |
+|-------|------|---------|
+| 1 | Foundation | ESP32 boot, FreeRTOS startup, initial `INIT` state, heartbeat task and GPIO2 LED. |
+| 2 | ESP32 / FreeRTOS / Wokwi | Boot state transition `INIT -> READY`, GPIO2 LED heartbeat, serial output in Wokwi. |
+| 3 | Sensors | Deterministic GPS/IMU/wheel-speed snapshots with validity flags. |
+| 4 | Communication | Message framing, loopback transport, TX/RX, and Fletcher-16 CRC validation. |
+| 5 | Control | Deterministic command generation, communication round-trip, validate/clamp, and actuation. |
+| 6 | Safety | Supervisor evaluating sensor, communication, and vehicle-speed conditions and gating the control output (normal / degraded / safe-stop / emergency-stop). |
+| 7 | Fault Injection | Deterministic, scheduled faults (GPS loss, communication loss, invalid command) with one-cycle observable effects. |
+| 8 | Testing | Runtime test runner observing Phase 2–7 behavior via existing getters. |
 
-This repository currently contains the project foundation and architecture scaffold only. Subsystem functionality is intentionally stubbed and not yet implemented as production logic.
+The `firmware/mission/`, `firmware/navigation/`, and `firmware/diagnostics/` modules are present in the build as lightweight scaffolds but are not yet implemented as production logic.
 
-The current tasks are limited to:
+## Technical stack
 
-- project initialization
-- ESP-IDF build configuration
-- RTOS task layout definition
-- placeholder module interfaces
-- architecture documentation placeholders
-- simulation configuration placeholders
+| Layer | Technology |
+|-------|-----------|
+| Hardware | ESP32 DevKitC V4 |
+| Framework | ESP-IDF (via PlatformIO) |
+| Build | PlatformIO, `esp32dev` environment |
+| RTOS | FreeRTOS (ESP-IDF) |
+| Simulation | Wokwi (VS Code Wokwi extension) |
+| Language | C / C++ |
 
-## Major planned subsystems
-
-- sensor subsystem
-- localization
-- navigation
-- motion control
-- safety supervisor
-- communication
-- diagnostics
-- mission management
-- vehicle/actuator simulation
-- fault injection
-- automated testing
-
-## Safety principle
-
-Safety decisions are expected to override navigation and normal control commands when a hazard, fault, or invalid operating condition is detected.
-
-## Vehicle states
-
-- INIT
-- READY
-- AUTONOMOUS
-- DEGRADED
-- FAULT
-- SAFE_STOP
-- EMERGENCY_STOP
-- RECOVERY
-
-## Planned fault scenarios
-
-- GPS loss
-- communication loss
-- Wi-Fi loss
-- obstacle detection
-- sensor disagreement
-- actuator mismatch
-- watchdog/task failure
-- invalid/unauthorized command
-
-## Repository layout
+## Repository structure
 
 ```text
 AgriLink/
-├── README.md
-├── CMakeLists.txt
-├── platformio.ini
-├── sdkconfig.esp32dev
+├── CMakeLists.txt            # top-level ESP-IDF project
+├── platformio.ini            # PlatformIO esp32dev env + Wokwi post-build hook
+├── sdkconfig.esp32dev        # ESP-IDF config (2 MB flash target)
 ├── .gitignore
-├── include/
-│   └── agri_types.h
+├── .vscode/                  # extensions.json (recommended); launch.json and c_cpp_properties.json are ignored
 ├── src/
-│   ├── CMakeLists.txt
-│   └── main.cpp
+│   ├── CMakeLists.txt        # component sources (globs firmware/**/*.cpp)
+│   └── main.cpp              # app_main: init + RTOS task creation
+├── include/
+│   └── agri_types.h          # shared types
 ├── firmware/
-│   ├── heartbeat/
-│   ├── sensors/
-│   ├── communication/
-│   ├── control/
-│   ├── simulation/
-│   ├── safety/
-│   ├── mission/
-│   ├── navigation/
-│   ├── diagnostics/
-│   ├── fault_injection/
-│   ├── tests/
-│   └── rtos/
+│   ├── rtos/agri_rtos.h      # task priorities
+│   ├── heartbeat/            # Phase 1-2
+│   ├── sensors/              # Phase 3
+│   ├── communication/        # Phase 4
+│   ├── control/              # Phase 5
+│   ├── simulation/           # Phase 5 vehicle model
+│   ├── safety/               # Phase 6
+│   ├── fault_injection/      # Phase 7
+│   ├── tests/                # Phase 8
+│   └── mission/, navigation/, diagnostics/   # scaffolds
+├── simulation/               # Wokwi diagram.json + wokwi.toml
 ├── scripts/
-├── simulation/
+│   └── wokwi_postbuild.py    # regenerates firmware.bin with the flash layout Wokwi expects
 ├── docs/
 ├── architecture/
-└── .vscode/
 ```
 
-## Build status
+## Build
 
-This branch is intended to compile as the initial platform foundation. Complete subsystem behavior is not yet implemented.
+From the repository root:
 
-## Wokwi readiness
+```
+pio run -e esp32dev
+```
 
-The simulation directory includes placeholder Wokwi files so that later schematic and device configuration can be added without changing the core project layout.
+Artifacts are produced under `.pio/build/esp32dev/` (`firmware.bin`, `firmware.elf`, `bootloader.bin`, `partitions.bin`). The post-build hook `scripts/wokwi_postbuild.py` (registered in `platformio.ini` as `extra_scripts = post:scripts/wokwi_postbuild.py`) rewrites `firmware.bin` with the ESP-IDF flash layout Wokwi requires — bootloader at `0x1000` (with `0xFF` padding), partition table at `0x8000`, application at `0x10000` — and writes a corrected `flasher_args.json` referencing bare filenames.
 
-## Disclaimer
+## Wokwi simulation
 
-AgriLink is an educational prototype and simulation-oriented embedded control architecture. It is not a deployment-ready autonomous tractor control platform and should not be treated as a safety-certified system for real-world agricultural machinery.
+Open the `simulation/` folder in VS Code with the Wokwi extension installed and start the simulator (Wokwi reads `simulation/wokwi.toml` and `simulation/diagram.json`). The circuit is an ESP32 DevKitC V4 with a green status LED on GPIO2 (driven by the heartbeat task), a push button on GPIO0, and UART wired to the Wokwi serial monitor.
+
+## Verification / evidence
+
+Wokwi runtime verification of the ESP32 DevKitC V4 simulation demonstrated:
+
+- System boot and the `INIT -> READY` state transition
+- Heartbeat task logging and GPIO2 LED toggling
+- Changing sensor values (GPS lat/lon, IMU, wheel speed)
+- Communication TX and RX over the loopback transport
+- CRC validation on received telemetry/commands (no CRC errors under normal operation)
+- Control command generation, validate/clamp, and vehicle actuation
+- Safety gating: the control output was inhibited (speed zeroed) when a gated condition was surfaced
+- GPS-loss fault response detected by the safety supervisor
+- Communication-loss fault response
+- Invalid control-command rejection by the validator
+
+## Testing
+
+Phase 8 adds a runtime test runner (`firmware/tests/test_runner.cpp`) that runs as a FreeRTOS task and emits `[TEST] <check> PASS|FAIL` lines for each observable, finishing with `[TEST] suite_complete pass=X fail=Y`.
+
+The observed Wokwi run reported **7 PASS / 6 FAIL**. The failures are associated with the test runner's observation windows and timing contracts against the deterministic schedules, not with the underlying Phase 2–7 runtime behavior, which was independently observed working as described above. Two root causes were identified during verification:
+
+- Phase 7 faults are one-cycle injections, so their observable effect does not persist across the full Phase 8 check windows that expect a sustained condition (e.g. GPS validity loss is consumed by the next sensor read).
+- The Phase 6 deterministic safety test window (12–15 s) overlaps the Phase 8 `recovery_after_gps` check (13–13.8 s), so the supervisor is in a gated `DEGRADED` state exactly when that check expects `NORMAL`.
+
+These are test-observation/timing mismatches. No claim of 13/13 is made; the 7 observed passes plus the independent runtime evidence above are the supported results.
+
+## Limitations and future work
+
+This is a simulation-oriented prototype, **not** production automotive safety software. It does not implement a certified ISO 26262 functional-safety lifecycle, a production ISOBUS stack, autonomous navigation, or real-vehicle actuation. It models a single ESP32 node on a Wokwi loopback bus; it is not a multi-node fleet system. The `mission/`, `navigation/`, and `diagnostics/` modules are scaffolds. Future work: a host-side test harness for deterministic timing, expanded fault scenarios, and real-transport (TWAI/CAN) bindings.
+
+## Why this project matters
+
+It demonstrates core embedded-control engineering concerns in a single deterministic, inspectable target: a prioritized FreeRTOS task graph; modular, replaceable subsystem boundaries (sensor / communication / control / safety layers with clean interfaces); explicit safety gating that prevents unsafe control from reaching the actuator; deterministic fault injection to exercise safety paths; and a built-in runtime self-checker that makes system behavior observable and verifiable in simulation — the same structural concerns that scale to real ECU development, without the production certification and automotive-grade redundancy.
