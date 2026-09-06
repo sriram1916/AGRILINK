@@ -1,4 +1,5 @@
 #include "firmware/communication/communication.h"
+#include "firmware/communication/transport.h"
 
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
@@ -14,12 +15,10 @@ namespace {
 const char *TAG = "communication";
 
 constexpr uint32_t kCommTaskPeriodMs = 1000;
-constexpr UBaseType_t kRxQueueLength = 8;
 
-// Loopback transport state: a single FreeRTOS queue that serves as
-// both the TX output and the RX input. comm_send() copies the message
-// into the queue; comm_process() drains it.
-static QueueHandle_t     g_loopback_queue = nullptr;
+// Loopback transport state. The underlying FreeRTOS queue is owned by the
+// transport abstraction (transport.cpp); this module only tracks whether a
+// transport has been registered and whether comm processing is enabled.
 static bool             g_transport_registered = false;
 static CommStats        g_stats{};
 static SemaphoreHandle_t g_stats_mutex = nullptr;
@@ -91,9 +90,8 @@ void comm_register_loopback_transport(void) {
     if (g_transport_registered) {
         return;
     }
-    g_loopback_queue = xQueueCreate(kRxQueueLength, sizeof(CommMessage));
-    if (g_loopback_queue == nullptr) {
-        ESP_LOGE(TAG, "[AGRILINK] Communication: loopback queue allocation failed");
+    if (!transport_init(TransportType::LOOPBACK)) {
+        ESP_LOGE(TAG, "[AGRILINK] Communication: loopback transport init failed");
         return;
     }
     g_transport_registered = true;
@@ -101,7 +99,7 @@ void comm_register_loopback_transport(void) {
 }
 
 bool comm_send(const CommMessage &msg) {
-    if (!g_transport_registered || g_loopback_queue == nullptr) {
+    if (!g_transport_registered) {
         update_stats_locked(CommStats{0, 0, 0, 1, 0, 0});
         return false;
     }
@@ -120,8 +118,8 @@ bool comm_send(const CommMessage &msg) {
     framed.crc          = compute_crc(framed);
     framed.timestamp_ms = monotonic_ms();
 
-    // Loopback: the queue serves as both the wire and the RX input.
-    if (xQueueSend(g_loopback_queue, &framed, 0) != pdTRUE) {
+    // Loopback: the transport re-injects the message for RX on this node.
+    if (!transport_send(framed)) {
         update_stats_locked(CommStats{0, 0, 0, 1, 0, 0});
         return false;
     }
@@ -139,12 +137,12 @@ bool comm_send(const CommMessage &msg) {
 }
 
 void comm_process(void) {
-    if (!g_transport_registered || g_loopback_queue == nullptr) {
+    if (!g_transport_registered) {
         return;
     }
 
     CommMessage received{};
-    while (xQueueReceive(g_loopback_queue, &received, 0) == pdTRUE) {
+    while (transport_receive(received)) {
         const uint16_t expected = compute_crc(received);
         const bool     ok       = (expected == received.crc);
 
