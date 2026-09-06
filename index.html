@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AgriLink &middot; Vehicle Control ECU — Demo Dashboard</title>
+    <link rel="stylesheet" href="./style.css" />
+    <link rel="icon" href="data:;base64,iVBORw0KGgo=" />
+</head>
+<body>
+    <header class="panel header">
+        <div class="logo">AgriLink</div>
+        <div class="header-meta">
+            <span class="pill" id="ecu-mode">SIMULATION MODE</span>
+            <span class="uptime" id="uptime">up 00:00:00</span>
+        </div>
+    </header>
+
+    <main class="panel-grid">
+        <!-- System status -->
+        <section class="panel" id="system-status">
+            <h2>System Status</h2>
+            <div class="status-grid">
+                <div class="stat"><span class="k">Vehicle State</span><span class="v" id="vehicle-state">--</span></div>
+                <div class="stat"><span class="k">Safety Status</span><span class="v" id="safety-status">--</span></div>
+                <div class="stat"><span class="k">ECU Health</span><span class="v" id="ecu-health">--</span></div>
+                <div class="stat"><span class="k">Link</span><span class="v" id="link-status">--</span></div>
+                <div class="stat"><span class="k">Comm OK</span><span class="v" id="comm-ok">--</span></div>
+                <div class="stat"><span class="k">Emergency Stop</span><span class="v" id="estop">--</span></div>
+            </div>
+        </section>
+
+        <!-- Sensor telemetry -->
+        <section class="panel" id="telemetry">
+            <h2>Sensor Telemetry <span class="tag">TELEMETRY id=0x0001 type=0x01 len=72</span></h2>
+            <div class="sensor-grid">
+                <div class="card">
+                    <h3>GPS</h3>
+                    <div class="row"><span class="k">Lat</span><span class="v mono" id="gps-lat">--</span></div>
+                    <div class="row"><span class="k">Lon</span><span class="v mono" id="gps-lon">--</span></div>
+                    <div class="row"><span class="k">Alt</span><span class="v mono" id="gps-alt">--</span></div>
+                    <div class="row"><span class="k">Valid</span><span class="v" id="gps-valid">--</span></div>
+                </div>
+                <div class="card">
+                    <h3>IMU</h3>
+                    <div class="row"><span class="k">Roll</span><span class="v mono" id="imu-roll">--</span></div>
+                    <div class="row"><span class="k">Pitch</span><span class="v mono" id="imu-pitch">--</span></div>
+                    <div class="row"><span class="k">Yaw</span><span class="v mono" id="imu-yaw">--</span></div>
+                    <div class="row"><span class="k">Valid</span><span class="v" id="imu-valid">--</span></div>
+                </div>
+                <div class="card">
+                    <h3>Wheel / Drive</h3>
+                    <div class="row"><span class="k">Speed</span><span class="v mono" id="wheel-speed">--</span></div>
+                    <div class="row"><span class="k">RPM</span><span class="v mono" id="wheel-rpm">--</span></div>
+                    <div class="row"><span class="k">Valid</span><span class="v" id="wheel-valid">--</span></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Vehicle simulation state -->
+        <section class="panel" id="vehicle-sim">
+            <h2>Vehicle Simulation</h2>
+            <div class="row"><span class="k">X</span><span class="v mono" id="sim-x">--</span></div>
+            <div class="row"><span class="k">Y</span><span class="v mono" id="sim-y">--</span></div>
+            <div class="row"><span class="k">Speed</span><span class="v mono" id="sim-speed">--</span></div>
+            <div class="row"><span class="k">Steering</span><span class="v mono" id="sim-steer">--</span></div>
+            <div class="row"><span class="k">Heading</span><span class="v mono" id="sim-heading">--</span></div>
+            <canvas id="drive-canvas" width="280" height="180" aria-label="Vehicle position and heading simulation"></canvas>
+        </section>
+
+        <!-- Communication status -->
+        <section class="panel" id="comm-status">
+            <h2>Communication <span class="tag">LOOPBACK (default)</span></h2>
+            <div class="stat"><span class="k">TX count</span><span class="v mono" id="comm-tx">0</span></div>
+            <div class="stat"><span class="k">RX count</span><span class="v mono" id="comm-rx">0</span></div>
+            <div class="stat"><span class="k">CRC OK</span><span class="v mono" id="comm-crc-ok">0</span></div>
+            <div class="stat"><span class="k">CRC errors</span><span class="v mono" id="comm-crc-err">0</span></div>
+            <div class="stat"><span class="k">TX errors</span><span class="v mono" id="comm-tx-err">0</span></div>
+            <div class="stat"><span class="k">Last TX</span><span class="v mono" id="comm-last-tx">0</span></div>
+            <div class="stat"><span class="k">Last RX</span><span class="v mono" id="comm-last-rx">0</span></div>
+            <pre class="log mono" id="comm-log"></pre>
+        </section>
+
+        <!-- Control output -->
+        <section class="panel" id="control-output">
+            <h2>Control Output</h2>
+            <div class="row"><span class="k">Commanded Speed</span><span class="v mono" id="ctrl-speed">--</span></div>
+            <div class="row"><span class="k">Commanded Steering</span><span class="v mono" id="ctrl-steer">--</span></div>
+            <div class="row"><span class="k">Enable</span><span class="v" id="ctrl-enable">--</span></div>
+            <div class="row"><span class="k">Clamped Speed</span><span class="v mono" id="ctrl-clamp-speed">--</span></div>
+            <div class="row"><span class="k">Clamped Steering</span><span class="v mono" id="ctrl-clamp-steer">--</span></div>
+        </section>
+
+        <!-- Safety decision -->
+        <section class="panel" id="safety">
+            <h2>Safety Decision</h2>
+            <div class="row"><span class="k">Status</span><span class="v" id="safety-status-v">--</span></div>
+            <div class="row"><span class="k">Target State</span><span class="v" id="safety-target">--</span></div>
+            <div class="row"><span class="k">Allow Control</span><span class="v" id="safety-allow">--</span></div>
+            <div class="row"><span class="k">Clamp Speed → 0</span><span class="v" id="safety-clamp">--</span></div>
+            <div class="row"><span class="k">Active Faults</span><span class="v mono" id="active-faults">none</span></div>
+        </section>
+
+        <!-- Fault event log -->
+        <section class="panel" id="event-log">
+            <h2>Fault / Event Log</h2>
+            <ul class="log" id="fault-log"></ul>
+        </section>
+
+        <!-- Fault injection (mirrors AgriLink FaultId behavior) -->
+        <section class="panel" id="fault-injection">
+            <h2>Fault Injection <span class="tag">simulated</span></h2>
+            <p class="hint">Mirrors AgriLink deterministic fault IDs for demonstration only.</p>
+            <div class="buttons">
+                <button class="btn fault" data-fault="GPS_LOSS">Inject GPS Loss</button>
+                <button class="btn fault" data-fault="COMMUNICATION_LOSS">Inject Comm Loss</button>
+                <button class="btn fault" data-fault="INVALID_COMMAND">Inject Invalid Command</button>
+                <button class="btn clear" id="clear-faults">Clear Faults</button>
+            </div>
+        </section>
+    </main>
+
+    <footer class="panel footer">
+        <small>
+            AgriLink Demo Dashboard &middot; Standalone browser simulation.
+            This dashboard does <strong>not</strong> connect to the ESP32 ECU over serial/Wi-Fi;
+            it replays AgriLink’s data model (see <code>firmware/</code> and <code>include/agri_types.h</code>)
+            with simulated values for portfolio demonstration.
+        </small>
+    </footer>
+
+    <script src="./app.js"></script>
+</body>
+</html>
