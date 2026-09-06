@@ -4,7 +4,7 @@ An ESP32-based embedded vehicle-control ECU prototype built with ESP-IDF, FreeRT
 
 ## 🚀 Live Simulation
 
-[▶ Run AgriLink Live in Wokwi](https://wokwi.com/experimental/viewer?diagram=https%3A%2F%2Fraw.githubusercontent.com%2Fsriram1916%2FAGRILINK%2Fmaster%2Fsimulation%2Fdiagram.json%26firmware=https%3A%2F%2Fraw.githubusercontent.com%2Fsriram1916%2FAGRILINK%2Fmaster%2Fsimulation%2Ffirmware.bin)
+[▶ Run AgriLink Live in Wokwi](https://wokwi.com/experimental/viewer?diagram=https%3A%2F%2Fraw.githubusercontent.com%2Fsriram1916%2FAGRILINK%2Fmaster%2Fsimulation%2Fdiagram.json&firmware=https%3A%2F%2Fraw.githubusercontent.com%2Fsriram1916%2FAGRILINK%2Fmaster%2Fsimulation%2Ffirmware.bin)
 
 Run the actual AgriLink ESP32 firmware directly in the browser using Wokwi.
 ## Key implemented capabilities
