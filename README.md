@@ -2,6 +2,11 @@
 
 An ESP32-based embedded vehicle-control ECU prototype built with ESP-IDF, FreeRTOS, and Wokwi simulation. The project models the software architecture of a Vehicle Control ECU for a simulated agricultural machine: a deterministic FreeRTOS task graph that reads sensors, exchanges telemetry and commands over a communication bus, generates and validates motion control, supervises safety, injects deterministic faults, and self-verifies through a runtime test runner.
 
+## 🚀 Live Simulation
+
+[▶ Run AgriLink Live in Wokwi](https://wokwi.com/experimental/viewer?diagram=https%3A%2F%2Fraw.githubusercontent.com%2Fsriram1916%2FAGRILINK%2Fmaster%2Fsimulation%2Fdiagram.json%26firmware=https%3A%2F%2Fraw.githubusercontent.com%2Fsriram1916%2FAGRILINK%2Fmaster%2Fsimulation%2Ffirmware.bin)
+
+Run the actual AgriLink ESP32 firmware directly in the browser using Wokwi.
 ## Key implemented capabilities
 
 - **ESP32 / ESP-IDF** target (`esp32dev` / ESP-IDF via PlatformIO)
